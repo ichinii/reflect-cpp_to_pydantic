@@ -45,8 +45,8 @@ struct ModelFacts {
   std::string bufferRefDefinition;
 
   /// struct -> field -> the default the C++ aggregate initializer applies.
-  /// reflect-cpp's schema cannot express per-field defaults (see README), so
-  /// the post-processor injects these.
+  /// reflect-cpp's schema cannot express per-field defaults (see CLAUDE.md),
+  /// so the post-processor injects these.
   std::map<std::string, std::map<std::string, rfl::Generic>> defaults;
 
   /// struct -> field -> dtype and ndim of a buffer-backed array field.

@@ -203,7 +203,7 @@ Scene fromJson(std::string_view _json, std::span<const BufferView> _buffers) {
   // fails its own rule (rfl::Validator<double, ExclusiveMinimum<0>>{} throws),
   // and it would throw from inside a noexcept function. Missing fields are
   // therefore an error here; the defaults reach Python through the schema
-  // instead. See the README.
+  // instead. See CLAUDE.md.
   //
   // rfl::NoExtraFields makes an unknown field an error instead of being
   // ignored, which is what the generated models do as well (extra="forbid" in
