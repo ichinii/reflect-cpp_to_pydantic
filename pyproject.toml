@@ -1,0 +1,21 @@
+[build-system]
+requires = ["scikit-build-core>=0.11", "nanobind>=2.9"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "toyscene"
+version = "0.1.0"
+description = "Scene description defined once in C++, used from Python"
+requires-python = ">=3.12"
+dependencies = ["numpy>=2.0", "pydantic>=2.11"]
+
+[tool.scikit-build]
+minimum-version = "0.11"
+build-dir = "build/{wheel_tag}"
+wheel.packages = ["python/toyscene"]
+cmake.version = ">=3.23"
+cmake.build-type = "RelWithDebInfo"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["error"]
