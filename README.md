@@ -1,7 +1,8 @@
-# toyscene
+# reflect-cpp_to_pydantic
 
-A prototype of one architecture: **the scene description is defined once, in C++**,
-and everything else is derived from it.
+A prototype of one architecture: **the data model is defined once, in C++**, and
+everything else is derived from it. The library inside is `toyscene`, a toy
+optical scene description.
 
 ```
 cpp/include/toyscene/Scene.h          plain aggregate structs, rfl::Validator guards,
@@ -16,21 +17,20 @@ cpp/include/toyscene/Scene.h          plain aggregate structs, rfl::Validator gu
                                                  and committed, never hand-written
 ```
 
-Python users build a scene out of the generated models and call `simulate(scene)`.
-The scene crosses the boundary as JSON; bulk arrays do not travel inside that
-JSON but alongside it as numpy buffers, so nothing large is copied in either
-direction. The result comes back as a `(numRays, 7)` float64 array that Python
+Scenes are built in Python, validated there, and cross as JSON. Bulk arrays
+travel alongside as numpy buffers rather than inside the JSON, so nothing large
+is copied either way; results come back as a `(numRays, 7)` float64 array Python
 owns without a copy.
 
-## What is actually happening
+reflect-cpp → JSON Schema → datamodel-code-generator → Pydantic v2, with
+nanobind and numpy at the boundary, glm for vectors, and nix, CMake and
+scikit-build-core for the build.
 
-One struct, carried end to end. `Mirror` is three lines of C++ and it exercises
-every stage of the pipeline at once.
+## One field, end to end
 
-### 1. What a human writes
+`Mirror` — the smallest struct that touches every stage.
 
-This is the only hand-written artifact in the chain
-(`cpp/include/toyscene/Scene.h`, with the alias from `cpp/include/toyscene/Types.h`):
+**1. Written by hand.** `Scene.h`, alias from `Types.h`:
 
 ```cpp
 using UnitIntervalDouble =
@@ -43,15 +43,10 @@ struct Mirror {
 using Behavior = rfl::TaggedUnion<"type", Mirror, Detector, Grating>;
 ```
 
-A plain aggregate. No macros, no annotations, no separate IDL file — reflect-cpp
-reflects over the struct at compile time, and the *types* of the fields are what
-carries the metadata: `rfl::Validator` holds the value bounds, `rfl::TaggedUnion`
-holds the variant set.
+A plain aggregate — no macros, no annotations, no IDL. The field *types* carry
+the metadata: `rfl::Validator` the bounds, `rfl::TaggedUnion` the variant set.
 
-### 2. What reflect-cpp exports
-
-`rfl::json::to_schema<Scene>()` turns that into JSON Schema
-(`schema/scene.schema.json`, abridged here to `reflectivity` and the one use site):
+**2. reflect-cpp exports it.** `schema/scene.schema.json`, abridged:
 
 ```json
 "toyscene__Mirror__tagged": {
@@ -82,17 +77,16 @@ holds the variant set.
 }
 ```
 
-The bound survived the trip, but four things are wrong for code generation: the
-definition key is a mangled C++ type name; the composed validator arrives as a
-*nested* `allOf` of single-keyword objects; `reflectivity` is in `required` with
-no sign of the `= 1.0`, because reflect-cpp's schema has no node for a per-field
-default at all; and `Behavior` has no name — a tagged union is inlined as an
-anonymous `anyOf` at every use site, with no discriminator.
+The bound survived, but four things block code generation:
 
-### 3. What post-processing makes of it
+* the `$defs` key is a mangled C++ type name
+* the composed validator arrives as a *nested* `allOf` of single-keyword objects
+* `reflectivity` sits in `required` with no default — reflect-cpp's schema has no
+  node for one
+* the union has no name: an anonymous `anyOf` at every use site, no discriminator
 
-`scripts/postprocess_schema.py` closes exactly those gaps
-(`schema/scene.pydantic.schema.json`):
+**3. Post-processing closes exactly those.** `scripts/postprocess_schema.py` →
+`schema/scene.pydantic.schema.json`:
 
 ```json
 "Mirror": {
@@ -111,22 +105,17 @@ anonymous `anyOf` at every use site, with no discriminator.
 }
 ```
 
-Four edits, one per wart: the name is cleaned; the nested `allOf` is flattened,
-keeping the tightest bound per keyword — which is what retires the `±DBL_MAX`
-pair that the `Finite` rule is forced to emit; `default: 1.0` is injected from
-`schema/model_facts.json` and `reflectivity` leaves `required`; and the inline
-`anyOf` is hoisted into a named definition with a discriminator, so every use
-site becomes `{"$ref": "#/$defs/Behavior"}`.
+* name cleaned
+* `allOf` flattened, keeping the tightest bound per keyword — which retires the
+  `±DBL_MAX` pair the `Finite` rule is forced to emit
+* `default: 1.0` injected from `model_facts.json`; `reflectivity` leaves `required`
+* `anyOf` hoisted into a named definition, discriminator added
 
-None of those edits invents a value. The default is read off a real
-`Mirror{}.reflectivity` in C++, and the union schema comes from
-`rfl::json::to_schema<Behavior>()` — the C++ stays the single source of truth.
+Nothing is invented along the way: the default is read off a real
+`Mirror{}.reflectivity`, the union schema comes from
+`rfl::json::to_schema<Behavior>()`.
 
-### 4. What comes out
-
-datamodel-code-generator reads that schema and
-`scripts/postprocess_models.py` finishes the job (`python/toyscene/_models.py`,
-generated and committed):
+**4. Generated.** `python/toyscene/_models.py`, committed:
 
 ```python
 class Mirror(SceneModel):
@@ -136,28 +125,11 @@ class Mirror(SceneModel):
 Behavior = Annotated[Mirror | Detector | Grating, Field(discriminator='type')]
 ```
 
-So: `[0, 1]` was written once, as a type in a C++ header. Both sides of the
-boundary now reject `reflectivity=1.5` with a comparable message, `Behavior` is a
-name you can annotate with, and a variant value *is* the variant —
-`isinstance(el.behavior, ts.Mirror)`, no wrapper to unpack. Nobody wrote the
-Python.
+`[0, 1]` was written once, as a type in a C++ header. Both sides now reject
+`reflectivity=1.5`, `Behavior` is a name you can annotate with, and a variant
+value *is* the variant — `isinstance(el.behavior, ts.Mirror)`, nothing to unpack.
 
-### The technologies at each arrow
-
-| stage | technology | role |
-| --- | --- | --- |
-| `Scene.h` | **reflect-cpp** 0.25 | compile-time reflection over plain C++20 aggregates. `rfl::Validator` carries value bounds, `rfl::TaggedUnion` carries variants, both reach the schema |
-| parse / serialize | reflect-cpp (+ `rfl::NoExtraFields`) | `fromJson` / `toJson` in `cpp/src/Serialization.cpp` |
-| `schema/*.json` | **JSON Schema** | the interchange format; the only thing the Python side reads |
-| post-processing | **Python** (`scripts/postprocess_*.py`) | closes the gaps reflect-cpp's export cannot state |
-| `_models.py` | **datamodel-code-generator** 0.35 | JSON Schema → Pydantic v2 source |
-| runtime | **Pydantic v2** | validation in Python, before anything crosses |
-| the boundary | **nanobind** 2.9 | `toyscene._core`; the scene as JSON, bulk arrays as **numpy** buffers alongside it |
-| geometry | **glm** | `glm::dvec3`, via a custom `rfl::Reflector` |
-| build | **nix** devShell, **CMake**, **scikit-build-core** | pinned toolchain |
-
-Why each post-processing step is necessary, and which reflect-cpp limitations
-force them, is written up in `CLAUDE.md`.
+Why each step is necessary: `CLAUDE.md`.
 
 ## Using it
 
@@ -188,15 +160,12 @@ scene = ts.Scene(
 rays = ts.simulate(scene)                       # (20000, 7) float64
 ```
 
-See `examples/basic.py` for the whole thing, including three errors caught at
-three different places.
+`examples/basic.py` runs this, plus three errors caught at three different places.
 
 ## Build
 
-Everything happens inside the nix devShell, which pins the whole toolchain —
-gcc, cmake, ninja, glm, and a Python 3.12 with numpy, pydantic,
-datamodel-code-generator, nanobind, scikit-build-core and pytest. `flake.nix` is
-the authoritative list.
+Everything happens inside the nix devShell, which pins the toolchain; `flake.nix`
+is the authoritative list.
 
 ```sh
 nix develop                              # creates and activates .venv on entry
@@ -206,14 +175,11 @@ cmake -S . -B build-cpp && cmake --build build-cpp && ctest --test-dir build-cpp
 python examples/basic.py
 ```
 
-Two things to know:
-
-* `nix develop` creates a `.venv` with `--system-site-packages` and activates it,
-  because nixpkgs' `site-packages` is read-only and an editable install needs
-  somewhere to write. Use `python -m pytest` rather than `pytest`: the `pytest` on
-  `PATH` comes from the nix environment and does not see the venv.
-* reflect-cpp **is not packaged in nixpkgs**, so CMake fetches it with
-  `FetchContent` at the pinned tag `v0.25.0` (into `.deps`, overridable with
+* Use `python -m pytest`, not `pytest` — the one on `PATH` comes from the nix
+  environment and does not see the `.venv`, which exists because nixpkgs'
+  `site-packages` is read-only and an editable install needs somewhere to write.
+* reflect-cpp is **not in nixpkgs**, so CMake fetches it with `FetchContent` at
+  the pinned tag `v0.25.0` (into `.deps`, overridable with
   `-DFETCHCONTENT_SOURCE_DIR_REFLECTCPP=...`). Everything else comes from nixpkgs.
 
 ## Regenerating the models
@@ -222,25 +188,20 @@ Two things to know:
 ./scripts/generate_models.sh
 ```
 
-Five files are generated and committed:
-
 | file | produced by | content |
 | --- | --- | --- |
 | `schema/scene.schema.json` | `cpp/tools/export_schema.cpp` | `rfl::json::to_schema<Scene>()`, verbatim |
 | `schema/model_facts.json` | same | the few things that schema cannot express |
-| `schema/named_unions.json` | same, from `cpp/src/NamedTypes.h` | `rfl::json::to_schema<T>()` per registered tagged union |
+| `schema/named_unions.json` | same, from `cpp/src/NamedTypes.h` | `rfl::json::to_schema<T>()` per registered union |
 | `schema/scene.pydantic.schema.json` | `scripts/postprocess_schema.py` | input for the code generator |
 | `python/toyscene/_models.py` | datamodel-code-generator + `scripts/postprocess_models.py` | the Pydantic models |
 
-`tests/test_schema_drift.py` runs the whole pipeline into a temporary directory
-and fails if any committed file is stale, so a change to `Scene.h` that has not
-been propagated cannot pass unnoticed. A fifth check makes sure the *compiled*
-extension agrees with the committed schema, so a stale build cannot make the
-other tests lie.
+All five are committed. `tests/test_schema_drift.py` reruns the pipeline into a
+temporary directory and fails if any committed file is stale — including a check
+that the *compiled* extension agrees, so a stale build cannot make the other
+tests lie.
 
 ## What is checked where
-
-Three layers, deliberately:
 
 | | checked by | examples |
 | --- | --- | --- |
@@ -248,12 +209,10 @@ Three layers, deliberately:
 | **shape of the data** | Pydantic (rank) and C++ (rank + extent) | `positions` is 2-d; `positions` is (N, 3) |
 | **cross-field and non-schema rules** | C++ only | as many `weights` as `positions` rows, non-negative weights, finite bulk data, `|normal| == 1` |
 
-A range constraint is written **once**, as an `rfl::Validator` alias in
-`cpp/include/toyscene/Types.h`. It reaches the generated models through the
-schema, which is why both sides reject `reflectivity = 1.5` with a comparable
-message. The rules in the third row cannot be expressed in a JSON Schema at all;
-they live in `validate()` methods on the C++ structs and surface in Python as
-`toyscene.SceneError` (a `ValueError`) with the JSON field path in the message:
+Range constraints are written once, as `rfl::Validator` aliases in
+`cpp/include/toyscene/Types.h`, and reach Python through the schema. The third
+row cannot be expressed in JSON Schema at all; those rules live in `validate()`
+methods and surface as `toyscene.SceneError` (a `ValueError`) with the JSON path:
 
 ```
 source.weights: has 50000 entries, but positions has 100000 rows
@@ -262,8 +221,8 @@ elements[0].normal: expected a unit vector, but |normal| = 1.044031
 
 ## Named tagged unions
 
-`Angle`, `PhotonEnergy`, `Source`, `Area` and `Behavior` exist as names in the
-generated Python:
+`Angle`, `PhotonEnergy`, `Source`, `Area` and `Behavior` are names in the
+generated Python, usable in annotations of your own:
 
 ```python
 Angle = Annotated[Deg | Rad, Field(discriminator='type')]
@@ -273,37 +232,30 @@ class PointSource(SceneModel):
     energy: PhotonEnergy
 ```
 
-so they can be used in annotations of your own. They exist because
-`cpp/src/NamedTypes.h` is a registry of the aliases that should be named;
-reflect-cpp itself emits no definition for a union. To add one, write a line in
-`namedUnions()`:
+reflect-cpp emits no definition for a union, so `cpp/src/NamedTypes.h` is a
+registry of the aliases that should get one. To add one:
 
-```cpp
-namedUnion<Polarization>("Polarization"),
-```
+* a line in `namedUnions()` — `namedUnion<Polarization>("Polarization"),`
+* `./scripts/generate_models.sh`
+* the name in the re-export list in `python/toyscene/__init__.py`
 
-then run `./scripts/generate_models.sh` and add the name to the re-export list in
-`python/toyscene/__init__.py`. The Python-facing name is the only thing written by
-hand; the schema comes from the C++ type. Post-processing fails loudly rather than
-silently producing a different shape — see `CLAUDE.md` for the failure modes.
+The Python-facing name is the only hand-written part; the schema comes from the
+C++ type. A stale registry fails the build — see `CLAUDE.md` for the failure modes.
 
 ## Known limits
 
-* **The simulation is a placeholder.** It samples origins and directions from the
-  source and folds element positions and normals into a single offset, so the
-  output reacts to the scene; the elements do nothing physical.
-* **A field with a C++ default is optional in Python, but required in the JSON.**
-  Pydantic fills defaults in before serializing, so C++ only ever sees complete
-  documents. A hand-written document passed straight to `_core.simulate_json` must
-  spell out every non-optional field.
-* **Only `float64` arrays exist.** `dtypeName<T>()` is specialized for `double`
-  alone, so another element type is a one-line addition plus a `model_facts` entry.
-* **`toJson` renumbers buffer references** in traversal order, so a round trip
-  preserves the scene but not necessarily the original buffer indices.
-* **`Array<T>` instances from `fromJson` are views** into the caller's buffers. A
-  `Scene` that outlives the call would need `BufferView::owner` set.
-* **`fromJson`/`toJson` use `thread_local` buffer tables.** Safe to call from
-  several threads, but an `Array<T>` cannot be parsed outside one of those scopes.
+* The simulation is a placeholder: it reacts to the scene, but the elements do
+  nothing physical.
+* A field with a C++ default is optional in Python, required in the JSON. Pydantic
+  fills defaults before serializing, so C++ only sees complete documents; a
+  hand-written document passed to `_core.simulate_json` must spell every field out.
+* Only `float64` arrays exist — `dtypeName<T>()` is specialized for `double` alone.
+* `toJson` renumbers buffer references, so a round trip preserves the scene but
+  not the original buffer indices.
+* `Array<T>` from `fromJson` is a view into the caller's buffers; a `Scene` that
+  outlives the call would need `BufferView::owner` set.
+* `fromJson`/`toJson` use `thread_local` buffer tables — safe across threads, but
+  an `Array<T>` cannot be parsed outside one of those scopes.
 
 ## Layout
 
@@ -314,7 +266,7 @@ cpp/src/NamedTypes.h     private: the registry of tagged unions to name
 cpp/src/Reflectors.h     private: rfl::Reflector for glm::dvec3 and Array<T>
 cpp/src/Serialization.cpp  fromJson / toJson / jsonSchema, validate(), buffer table
 cpp/src/Simulate.cpp     the dummy simulation
-cpp/tools/export_schema.cpp  writes schema/scene.schema.json + model_facts.json
+cpp/tools/export_schema.cpp  writes the three exported schema files
 cpp/tests/test_scene.cpp     the ctest target
 bindings/module.cpp      nanobind module toyscene._core
 python/toyscene/__init__.py  public API: models, simulate(), SceneError
