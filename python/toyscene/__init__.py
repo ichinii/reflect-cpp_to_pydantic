@@ -27,6 +27,11 @@ scene out of them and hand it to `simulate`:
     )
     rays = ts.simulate(scene)      # (1000, 7) float64
 
+The tagged unions are re-exported as type aliases -- `Angle`, `PhotonEnergy`,
+`Source`, `Area`, `Behavior` -- so they can be used in annotations of your own:
+
+    def tilt(divergence: ts.Angle) -> ts.PointSource: ...
+
 Value ranges are checked twice: by Pydantic when the model is built, and again
 by C++ when the document is parsed. Rules that a JSON Schema cannot carry --
 cross-field constraints, unit-length normals, finiteness of bulk data -- are
@@ -40,6 +45,7 @@ import numpy as np
 from . import _core
 from ._arrays import ArraySpec, Float64Array1D, Float64Array2D
 from ._models import (
+    # the variant members
     Deg,
     Detector,
     ElectronVolt,
@@ -54,6 +60,16 @@ from ._models import (
     SampledSource,
     Scene,
     Wavelength,
+)
+from ._models import (
+    # the tagged unions, as discriminated type aliases rather than classes, so
+    # `scene.source` is a PointSource/RectSource/SampledSource and not a wrapper
+    # around one. Registered in cpp/src/NamedTypes.h.
+    Angle,
+    Area,
+    Behavior,
+    PhotonEnergy,
+    Source,
 )
 
 #: Raised for anything the C++ side rejects. A `ValueError`, so it can be
@@ -85,7 +101,10 @@ def scene_json_schema() -> str:
 
 __all__ = [
     "RESULT_COLUMNS",
+    "Angle",
+    "Area",
     "ArraySpec",
+    "Behavior",
     "Deg",
     "Detector",
     "ElectronVolt",
@@ -95,6 +114,7 @@ __all__ = [
     "Float64Array2D",
     "Grating",
     "Mirror",
+    "PhotonEnergy",
     "PointSource",
     "Rad",
     "RectArea",
@@ -102,6 +122,7 @@ __all__ = [
     "SampledSource",
     "Scene",
     "SceneError",
+    "Source",
     "Wavelength",
     "scene_json_schema",
     "simulate",

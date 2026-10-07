@@ -9,6 +9,7 @@ by handing the document to `toyscene._core.simulate_json` directly.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,10 @@ import toyscene as ts
 ROWS = 64
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# The code-generation steps are scripts, not an installed package, so make them
+# importable for their unit tests.
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 
 @pytest.fixture

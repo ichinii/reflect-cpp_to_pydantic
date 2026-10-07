@@ -30,6 +30,19 @@ def show_error(title: str, caught_by: str, error: Exception) -> None:
     print(textwrap.indent(str(error).strip(), "    "))
 
 
+def tilted_normal(about_x: ts.Angle) -> list[float]:
+    """A unit normal tilted away from +z by `about_x`, about the x axis.
+
+    The parameter annotation is half the point of this function: `Angle` exists
+    as a name in Python only because the C++ alias is registered in
+    `cpp/src/NamedTypes.h` -- reflect-cpp inlines a tagged union at every use
+    site and gives it no definition of its own. The other half is that the
+    argument really is a `Deg` or a `Rad`, with no wrapper to unpack.
+    """
+    radians = math.radians(about_x.value) if isinstance(about_x, ts.Deg) else about_x.value
+    return [0.0, math.sin(radians), math.cos(radians)]
+
+
 def build_scene() -> ts.Scene:
     rng = np.random.default_rng(20261007)
 
@@ -43,8 +56,7 @@ def build_scene() -> ts.Scene:
 
     # A mirror tilted by 2 degrees about x. The normal has to be a unit vector;
     # C++ checks that, and nothing in the JSON Schema could.
-    tilt = math.radians(2.0)
-    tilted_normal = [0.0, math.sin(tilt), math.cos(tilt)]
+    normal = tilted_normal(ts.Deg(type="Deg", value=2.0))
 
     return ts.Scene(
         name="ring source through a mirror",
@@ -60,7 +72,7 @@ def build_scene() -> ts.Scene:
             ts.Element(
                 name="mirror",
                 position=[0.0, 0.0, 1000.0],
-                normal=tilted_normal,
+                normal=normal,
                 area=ts.RectArea(type="RectArea", width=40.0, height=10.0),
                 behavior=ts.Mirror(type="Mirror", reflectivity=0.84),
             ),
@@ -87,6 +99,10 @@ def main() -> None:
     for element in scene.elements:
         print(f"  element   {element.name:<9} {element.behavior.type:<9}"
               f" at {element.position} normal {np.round(element.normal, 4).tolist()}")
+    # The tagged unions are named aliases, so a variant value is the variant.
+    print(f"  source is a {type(scene.source).__name__}, "
+          f"its energy a {type(scene.source.energy).__name__} "
+          f"(ts.Source and ts.PhotonEnergy are aliases, not wrappers)")
 
     rule("simulate")
     rays = ts.simulate(scene)

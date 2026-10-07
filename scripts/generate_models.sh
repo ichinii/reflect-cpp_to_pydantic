@@ -6,6 +6,7 @@
 #        v
 #   schema/scene.schema.json               reflect-cpp's JSON Schema, verbatim
 #   schema/model_facts.json                what that schema cannot express
+#   schema/named_unions.json               the tagged unions it inlines
 #        |  scripts/postprocess_schema.py
 #        v
 #   schema/scene.pydantic.schema.json      input for the code generator
@@ -13,7 +14,7 @@
 #        v
 #   python/toyscene/_models.py             the Pydantic models
 #
-# All four outputs are committed; tests/test_schema_drift.py fails if running
+# All five outputs are committed; tests/test_schema_drift.py fails if running
 # this script would change any of them.
 #
 # Run inside the nix devShell: ./scripts/generate_models.sh
@@ -40,7 +41,7 @@ echo "==> exporting the schema"
 echo "==> post-processing the schema"
 python scripts/postprocess_schema.py \
   "$schema_dir/scene.schema.json" "$schema_dir/model_facts.json" \
-  "$schema_dir/scene.pydantic.schema.json"
+  "$schema_dir/named_unions.json" "$schema_dir/scene.pydantic.schema.json"
 
 echo "==> generating the Pydantic models"
 # --strict-nullable         a field with a default is not thereby nullable; C++
@@ -50,9 +51,13 @@ echo "==> generating the Pydantic models"
 # --enum-field-as-literal   the tagged-union discriminator becomes
 #                           Literal['Mirror'] rather than a one-member Enum.
 # --base-class              shared model config, see python/toyscene/_base.py.
-# --class-name Scene        names the root model after the schema's root $ref;
-#                           --collapse-root-models then folds the RootModel
-#                           wrapper away instead of leaving a stray `Model`.
+# --class-name Scene        names the root model after the schema's root $ref,
+#                           so no stray `Model` wrapper is emitted for it.
+#
+# Note there is deliberately no --collapse-root-models: it would inline the
+# hoisted tagged unions back at every use site, undoing the whole point. The
+# root models it would have folded away are turned into type aliases by
+# scripts/postprocess_models.py instead.
 # --custom-file-header      replaces the generator's own header, which carries a
 #                           timestamp and would make the output non-reproducible.
 datamodel-codegen \
@@ -69,7 +74,6 @@ datamodel-codegen \
   --enum-field-as-literal all \
   --use-standard-collections \
   --use-union-operator \
-  --collapse-root-models \
   --class-name Scene \
   --custom-file-header "$(cat <<'HEADER'
 # GENERATED FILE -- DO NOT EDIT.
@@ -81,7 +85,7 @@ datamodel-codegen \
 HEADER
 )"
 
-echo "==> swapping in the numpy-backed array types"
-python scripts/postprocess_models.py "$out"
+echo "==> swapping in the numpy-backed array types and the union aliases"
+python scripts/postprocess_models.py "$out" "$schema_dir/named_unions.json"
 
 echo "==> done"

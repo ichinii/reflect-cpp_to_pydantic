@@ -1,8 +1,9 @@
 """The committed generated files must match what the pipeline produces.
 
 `schema/scene.schema.json`, `schema/model_facts.json`,
-`schema/scene.pydantic.schema.json` and `python/toyscene/_models.py` are all
-derived from the C++ headers and all committed. This runs the full pipeline into
+`schema/named_unions.json`, `schema/scene.pydantic.schema.json` and
+`python/toyscene/_models.py` are all derived from the C++ headers and all
+committed. This runs the full pipeline into
 a temporary directory and compares, so a change to the C++ model that has not
 been propagated fails here rather than at some later surprise.
 """
@@ -21,6 +22,7 @@ from conftest import REPO_ROOT
 GENERATED = [
     "schema/scene.schema.json",
     "schema/model_facts.json",
+    "schema/named_unions.json",
     "schema/scene.pydantic.schema.json",
 ]
 

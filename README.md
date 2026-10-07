@@ -9,6 +9,7 @@ cpp/include/toyscene/Scene.h          plain aggregate structs, rfl::Validator gu
        |  reflect-cpp
        +--> JSON parsing + validation           (cpp/src/Serialization.cpp)
        +--> schema/scene.schema.json            (cpp/tools/export_schema.cpp)
+       +--> schema/named_unions.json            (cpp/src/NamedTypes.h registry)
                 |  scripts/generate_models.sh
                 +--> python/toyscene/_models.py  Pydantic v2 models, generated
                                                  and committed, never hand-written
@@ -80,12 +81,13 @@ reflect-cpp **is not packaged in nixpkgs**, so CMake fetches it with
 ./scripts/generate_models.sh
 ```
 
-Four files are generated and committed:
+Five files are generated and committed:
 
 | file | produced by | content |
 | --- | --- | --- |
 | `schema/scene.schema.json` | `cpp/tools/export_schema.cpp` | `rfl::json::to_schema<Scene>()`, verbatim |
 | `schema/model_facts.json` | same | the few things that schema cannot express |
+| `schema/named_unions.json` | same, from `cpp/src/NamedTypes.h` | `rfl::json::to_schema<T>()` per registered tagged union |
 | `schema/scene.pydantic.schema.json` | `scripts/postprocess_schema.py` | input for the code generator |
 | `python/toyscene/_models.py` | datamodel-code-generator + `scripts/postprocess_models.py` | the Pydantic models |
 
@@ -116,6 +118,94 @@ they live in `validate()` methods on the C++ structs and surface in Python as
 source.weights: has 50000 entries, but positions has 100000 rows
 elements[0].normal: expected a unit vector, but |normal| = 1.044031
 ```
+
+## Named tagged unions
+
+`Angle`, `PhotonEnergy`, `Source`, `Area` and `Behavior` exist as names in the
+generated Python:
+
+```python
+Angle = Annotated[Deg | Rad, Field(discriminator='type')]
+
+class PointSource(SceneModel):
+    divergence: Angle = {'type': 'Rad', 'value': 0.0}
+    energy: PhotonEnergy
+```
+
+so they can be used in annotations of your own, and a variant value *is* the
+variant -- `isinstance(source.divergence, ts.Deg)`, no `.root` to unpack.
+
+### Why this needs post-processing
+
+**reflect-cpp only emits named schema definitions for structs.** A
+`rfl::TaggedUnion` gets none: it is inlined as an `anyOf` of `$ref`s at every
+use site, so nothing in `schema/scene.schema.json` says that the two-member
+union under `PointSource.divergence` and the one under `Element.area` are
+different types, or that the three-member one appears under `Scene.source`.
+Generated straight from that schema, the unions simply would not exist.
+
+`rfl::json::to_schema<T>()` *does* work on a union directly, and returns the
+`anyOf` as the document root with the member definitions carried along under
+`$defs`. `cpp/src/NamedTypes.h` is a registry of the aliases that should be
+named; `export_schema` writes each one's schema to `schema/named_unions.json`,
+and `scripts/postprocess_schema.py` replaces every structurally identical inline
+occurrence with a reference to a definition under that name. The schemas come
+from the C++ types, so the C++ remains the single source of truth -- the only
+thing written by hand is the Python-facing name.
+
+### Registering a new union
+
+One line in `namedUnions()` in `cpp/src/NamedTypes.h`:
+
+```cpp
+namedUnion<Polarization>("Polarization"),
+```
+
+then `./scripts/generate_models.sh`, and add the name to the re-export list in
+`python/toyscene/__init__.py`.
+
+### What breaks when the registry is stale
+
+The post-processing fails the build rather than silently producing a different
+shape:
+
+| situation | error |
+| --- | --- |
+| a registered union no longer occurs in the schema (the C++ alias is unused, or its member list changed) | `registered union(s) ['Angle'] do not occur in the schema` |
+| two registrations have identical members, so which name an inline block becomes is arbitrary | `an inline union matches several registered names [...]` |
+| a registered name is already a struct name | `cannot hoist union 'X': the schema already defines that name` |
+| the two exported files were edited apart | `union 'X' and the main schema disagree about 'Y'` |
+| the generator stopped wrapping an `anyOf` definition in a `RootModel`, so there is nothing to alias | `the generator did not emit a root model for [...]` |
+
+Matching is structural and order-sensitive, on the member list as reflect-cpp
+writes it. Reordering `rfl::TaggedUnion<"type", Rad, Deg>` is therefore fine:
+both files move together. Adding a member to a union that is *not* registered is
+also fine -- it stays inline, as it is today.
+
+### Two things that could not be configured away
+
+* **Definition names.** reflect-cpp derives `$defs` keys from C++ type names
+  with every non-alphanumeric character replaced by `_`, and appends `__tagged`
+  to a struct used inside a tagged union, so `Mirror` arrives as
+  `toyscene__Mirror__tagged`. Those names would become the Python class names,
+  so they are stripped. A struct used both inside a union *and* on its own would
+  produce `Foo` and `Foo__tagged`, which clean to the same name; the tagged form
+  wins, because it carries the `type` literal the discriminated union needs.
+  That is wrong for a plain field of such a type -- it would start demanding a
+  `type` property -- so the post-processor raises if more than one form is
+  referenced from outside a union, and warns if only the plain one is. Nothing
+  in the current model triggers either.
+
+* **Aliases rather than `RootModel`.** datamodel-code-generator 0.35.0 has no
+  type-alias option; it emits a `RootModel` subclass for a definition whose body
+  is an `anyOf`. `--collapse-root-models` does the opposite of what is wanted --
+  it inlines the union back at every use site, undoing the hoist -- so it is not
+  used, and `scripts/postprocess_models.py` rewrites each wrapper into the alias
+  it should have been. The rewrite walks the AST rather than matching text, and
+  fails if a registered union did not come out as a `RootModel`. It also strips
+  the empty `Field()` that the generator wraps a defaulted alias in
+  (`Annotated[Angle, Field()]`), which otherwise stops the annotation from
+  *being* `Angle`.
 
 ## Decisions and limitations
 
@@ -239,10 +329,11 @@ model. Both sides reject a vector of 2 or 4 elements.
   the base class's config and silently drops `validate_default=True` — on which
   the defaulted tagged-union field depends.
 * **Discriminated unions.** `rfl::TaggedUnion` becomes a plain `anyOf` with no
-  `discriminator`. The post-processor adds the OpenAPI-style keyword wherever
-  every branch is a definition with a one-value `type` enum, which is what makes
-  the generated models use `Field(discriminator='type')` and produce useful
-  errors instead of trying every branch.
+  `discriminator` and no name. The post-processor adds the OpenAPI-style keyword
+  wherever every branch is a definition with a one-value `type` enum, which is
+  what makes the generated models use `Field(discriminator='type')` and produce
+  useful errors instead of trying every branch. Naming the unions is a separate
+  step; see above.
 * **Validator composition.** A composed `rfl::Validator` arrives as a *nested*
   `allOf` of single-keyword objects. The post-processor merges those into one
   object, keeping the tightest bound per keyword — which is exactly `allOf`
@@ -281,6 +372,7 @@ one alias and makes the generated models reject a NaN angle too.
 ```
 cpp/include/toyscene/    public headers: Scene.h, Types.h, Array.h,
                          Serialization.h, Simulate.h  (reflect-cpp + glm allowed)
+cpp/src/NamedTypes.h     private: the registry of tagged unions to name
 cpp/src/Reflectors.h     private: rfl::Reflector for glm::dvec3 and Array<T>
 cpp/src/Serialization.cpp  fromJson / toJson / jsonSchema, validate(), buffer table
 cpp/src/Simulate.cpp     the dummy simulation

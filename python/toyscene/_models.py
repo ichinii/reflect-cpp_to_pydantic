@@ -80,6 +80,13 @@ class Wavelength(SceneModel):
     ]
 
 
+Angle = Annotated[Deg | Rad, Field(discriminator='type')]
+
+Area = Annotated[RectArea | EllipseArea, Field(discriminator='type')]
+
+Behavior = Annotated[Mirror | Detector | Grating, Field(discriminator='type')]
+
+
 class Element(SceneModel):
     name: Annotated[str, Field(min_length=1)]
     position: Annotated[list[float], Field(max_length=3, min_length=3)] = [
@@ -88,38 +95,39 @@ class Element(SceneModel):
         0.0,
     ]
     normal: Annotated[list[float], Field(max_length=3, min_length=3)] = [0.0, 0.0, 1.0]
-    area: Annotated[RectArea | EllipseArea, Field(discriminator='type')]
-    behavior: Annotated[Mirror | Detector | Grating, Field(discriminator='type')]
+    area: Area
+    behavior: Behavior
+
+
+PhotonEnergy = Annotated[Wavelength | ElectronVolt, Field(discriminator='type')]
 
 
 class PointSource(SceneModel):
     type: Literal['PointSource']
-    divergence: Annotated[Deg | Rad, Field(discriminator='type')] = {
-        'type': 'Rad',
-        'value': 0.0,
-    }
-    energy: Annotated[Wavelength | ElectronVolt, Field(discriminator='type')]
+    divergence: Angle = {'type': 'Rad', 'value': 0.0}
+    energy: PhotonEnergy
 
 
 class RectSource(SceneModel):
     type: Literal['RectSource']
     width: Annotated[float, Field(ge=0.0, le=1.7976931348623157e308)]
     height: Annotated[float, Field(ge=0.0, le=1.7976931348623157e308)]
-    energy: Annotated[Wavelength | ElectronVolt, Field(discriminator='type')]
+    energy: PhotonEnergy
 
 
 class SampledSource(SceneModel):
     type: Literal['SampledSource']
     positions: Float64Array2D
     weights: Float64Array1D | None = None
-    energy: Annotated[Wavelength | ElectronVolt, Field(discriminator='type')]
+    energy: PhotonEnergy
+
+
+Source = Annotated[PointSource | RectSource | SampledSource, Field(discriminator='type')]
 
 
 class Scene(SceneModel):
     name: Annotated[str, Field(min_length=1)]
     numRays: Annotated[int, Field(ge=1, le=10000000)] = 10000
     seed: int | None = None
-    source: Annotated[
-        PointSource | RectSource | SampledSource, Field(discriminator='type')
-    ]
+    source: Source
     elements: list[Element]

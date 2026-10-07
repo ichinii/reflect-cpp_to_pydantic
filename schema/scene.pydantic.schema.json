@@ -2,6 +2,48 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$ref": "#/$defs/Scene",
   "$defs": {
+    "Angle": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Deg"
+        },
+        {
+          "$ref": "#/$defs/Rad"
+        }
+      ],
+      "discriminator": {
+        "propertyName": "type"
+      }
+    },
+    "Area": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RectArea"
+        },
+        {
+          "$ref": "#/$defs/EllipseArea"
+        }
+      ],
+      "discriminator": {
+        "propertyName": "type"
+      }
+    },
+    "Behavior": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Mirror"
+        },
+        {
+          "$ref": "#/$defs/Detector"
+        },
+        {
+          "$ref": "#/$defs/Grating"
+        }
+      ],
+      "discriminator": {
+        "propertyName": "type"
+      }
+    },
     "Deg": {
       "type": "object",
       "properties": {
@@ -91,33 +133,10 @@
           ]
         },
         "area": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RectArea"
-            },
-            {
-              "$ref": "#/$defs/EllipseArea"
-            }
-          ],
-          "discriminator": {
-            "propertyName": "type"
-          }
+          "$ref": "#/$defs/Area"
         },
         "behavior": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Mirror"
-            },
-            {
-              "$ref": "#/$defs/Detector"
-            },
-            {
-              "$ref": "#/$defs/Grating"
-            }
-          ],
-          "discriminator": {
-            "propertyName": "type"
-          }
+          "$ref": "#/$defs/Behavior"
         }
       },
       "required": [
@@ -199,6 +218,19 @@
         "type"
       ]
     },
+    "PhotonEnergy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Wavelength"
+        },
+        {
+          "$ref": "#/$defs/ElectronVolt"
+        }
+      ],
+      "discriminator": {
+        "propertyName": "type"
+      }
+    },
     "PointSource": {
       "type": "object",
       "properties": {
@@ -209,34 +241,14 @@
           ]
         },
         "divergence": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Deg"
-            },
-            {
-              "$ref": "#/$defs/Rad"
-            }
-          ],
+          "$ref": "#/$defs/Angle",
           "default": {
             "type": "Rad",
             "value": 0.0
-          },
-          "discriminator": {
-            "propertyName": "type"
           }
         },
         "energy": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Wavelength"
-            },
-            {
-              "$ref": "#/$defs/ElectronVolt"
-            }
-          ],
-          "discriminator": {
-            "propertyName": "type"
-          }
+          "$ref": "#/$defs/PhotonEnergy"
         }
       },
       "required": [
@@ -312,17 +324,7 @@
           "maximum": 1.7976931348623157e+308
         },
         "energy": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Wavelength"
-            },
-            {
-              "$ref": "#/$defs/ElectronVolt"
-            }
-          ],
-          "discriminator": {
-            "propertyName": "type"
-          }
+          "$ref": "#/$defs/PhotonEnergy"
         }
       },
       "required": [
@@ -355,17 +357,7 @@
           ]
         },
         "energy": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Wavelength"
-            },
-            {
-              "$ref": "#/$defs/ElectronVolt"
-            }
-          ],
-          "discriminator": {
-            "propertyName": "type"
-          }
+          "$ref": "#/$defs/PhotonEnergy"
         }
       },
       "required": [
@@ -398,20 +390,7 @@
           ]
         },
         "source": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PointSource"
-            },
-            {
-              "$ref": "#/$defs/RectSource"
-            },
-            {
-              "$ref": "#/$defs/SampledSource"
-            }
-          ],
-          "discriminator": {
-            "propertyName": "type"
-          }
+          "$ref": "#/$defs/Source"
         },
         "elements": {
           "type": "array",
@@ -425,6 +404,22 @@
         "source",
         "elements"
       ]
+    },
+    "Source": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PointSource"
+        },
+        {
+          "$ref": "#/$defs/RectSource"
+        },
+        {
+          "$ref": "#/$defs/SampledSource"
+        }
+      ],
+      "discriminator": {
+        "propertyName": "type"
+      }
     },
     "Wavelength": {
       "type": "object",
