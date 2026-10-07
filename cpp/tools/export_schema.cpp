@@ -1,9 +1,11 @@
-/// Writes the two files the Python model generator consumes:
+/// Writes the three files the Python model generator consumes:
 ///
 ///   schema/scene.schema.json  -- the JSON Schema exactly as reflect-cpp emits it
 ///   schema/model_facts.json   -- the handful of things that schema cannot say
+///   schema/named_unions.json  -- the schema of each registered tagged union,
+///                                which reflect-cpp inlines rather than naming
 ///
-/// Both are committed. `scripts/generate_models.sh` regenerates them and the
+/// All three are committed. `scripts/generate_models.sh` regenerates them and the
 /// Pydantic models; `tests/test_schema_drift.py` fails if the committed copies
 /// no longer match.
 
@@ -16,6 +18,7 @@
 #include <rfl.hpp>
 #include <rfl/json.hpp>
 
+#include "NamedTypes.h"
 #include "Reflectors.h"
 #include "toyscene/Serialization.h"
 
@@ -49,6 +52,28 @@ struct ModelFacts {
   /// struct -> field -> dtype and ndim of a buffer-backed array field.
   std::map<std::string, std::map<std::string, ArrayFact>> arrays;
 };
+
+/// The schema of every union in the registry, keyed by the name it should carry
+/// in Python. Each value is `rfl::json::to_schema<T>()` verbatim: the `anyOf` as
+/// the document root, with the member definitions carried along under `$defs`
+/// so the post-processor can check them against the main schema.
+std::map<std::string, rfl::Generic> namedUnionSchemas() {
+  std::map<std::string, rfl::Generic> out;
+  for (const auto& union_ : detail::namedUnions()) {
+    auto parsed = rfl::json::read<rfl::Generic>(union_.schema);
+    if (!parsed.has_value()) {
+      throw std::runtime_error("Could not re-read the schema of union '" +
+                               union_.name + "': " + parsed.error().what());
+    }
+    const auto [_, inserted] =
+        out.emplace(union_.name, std::move(parsed).value());
+    if (!inserted) {
+      throw std::runtime_error("Union '" + union_.name +
+                               "' is registered twice in NamedTypes.h.");
+    }
+  }
+  return out;
+}
 
 /// A C++ value as the JSON it serializes to.
 template <class T>
@@ -123,6 +148,8 @@ int main(int _argc, char** _argv) {
     write(outDir / "scene.schema.json", jsonSchema());
     write(outDir / "model_facts.json",
           rfl::json::write(modelFacts(), rfl::json::pretty));
+    write(outDir / "named_unions.json",
+          rfl::json::write(namedUnionSchemas(), rfl::json::pretty));
     return 0;
   } catch (const std::exception& e) {
     std::cerr << "export_schema failed: " << e.what() << "\n";
