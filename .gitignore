@@ -1,0 +1,14 @@
+# local Claude Code permissions, not part of the project
+/.claude/settings.local.json
+
+# nix / CMake FetchContent cache for reflect-cpp
+/.deps/
+# editable-install venv created by the devShell
+/.venv/
+# build trees: ctest (build-cpp) and scikit-build-core (build)
+/build-cpp/
+/build/
+__pycache__/
+*.so
+*.egg-info/
+/.pytest_cache/
