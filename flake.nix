@@ -45,8 +45,10 @@
             ];
 
             shellHook = ''
-              # reflect-cpp is not in nixpkgs; CMake FetchContent pulls the pinned tag
-              # into .deps so repeated configures do not re-clone.
+              # reflect-cpp is not in nixpkgs; CMake FetchContent pulls the pinned
+              # tag into .deps, shared by every build tree. CMakeLists.txt turns
+              # this into the matching cache variable -- CMake itself never reads
+              # it from the environment.
               export FETCHCONTENT_BASE_DIR="$PWD/.deps"
               export CMAKE_GENERATOR=Ninja
 

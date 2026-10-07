@@ -17,6 +17,14 @@ option(TOYSCENE_BUILD_TESTS "Build the C++ ctest target" ON)
 # local copy.
 set(TOYSCENE_REFLECTCPP_TAG "v0.25.0" CACHE STRING "reflect-cpp git tag to build against")
 
+# CMake reads FETCHCONTENT_BASE_DIR as a cache variable, never from the
+# environment. Honour it here so the devShell can point every build tree -- the
+# ctest one and the scikit-build-core one -- at a single clone instead of
+# fetching and compiling reflect-cpp once per tree.
+if(DEFINED ENV{FETCHCONTENT_BASE_DIR} AND NOT DEFINED FETCHCONTENT_BASE_DIR)
+  set(FETCHCONTENT_BASE_DIR "$ENV{FETCHCONTENT_BASE_DIR}" CACHE PATH "Where FetchContent stores its downloads")
+endif()
+
 set(REFLECTCPP_JSON ON CACHE BOOL "" FORCE)
 set(REFLECTCPP_USE_BUNDLED_DEPENDENCIES ON CACHE BOOL "" FORCE)  # bundled yyjson, no vcpkg
 set(REFLECTCPP_INSTALL OFF CACHE BOOL "" FORCE)
