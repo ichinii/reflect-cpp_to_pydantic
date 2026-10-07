@@ -1,0 +1,499 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$ref": "#/$defs/Scene",
+  "$defs": {
+    "Deg": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "Deg"
+          ]
+        },
+        "value": {
+          "type": "number",
+          "minimum": -1.7976931348623157e+308,
+          "maximum": 1.7976931348623157e+308
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ]
+    },
+    "Detector": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "Detector"
+          ]
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "ElectronVolt": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ElectronVolt"
+          ]
+        },
+        "eV": {
+          "type": "number",
+          "exclusiveMinimum": 0.0,
+          "minimum": -1.7976931348623157e+308,
+          "maximum": 1.7976931348623157e+308
+        }
+      },
+      "required": [
+        "type",
+        "eV"
+      ]
+    },
+    "Element": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "position": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "normal": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "default": [
+            0.0,
+            0.0,
+            1.0
+          ]
+        },
+        "area": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RectArea"
+            },
+            {
+              "$ref": "#/$defs/EllipseArea"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "type"
+          }
+        },
+        "behavior": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Mirror"
+            },
+            {
+              "$ref": "#/$defs/Detector"
+            },
+            {
+              "$ref": "#/$defs/Grating"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "type"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "area",
+        "behavior"
+      ]
+    },
+    "EllipseArea": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "EllipseArea"
+          ]
+        },
+        "a": {
+          "type": "number",
+          "exclusiveMinimum": 0.0,
+          "minimum": -1.7976931348623157e+308,
+          "maximum": 1.7976931348623157e+308
+        },
+        "b": {
+          "type": "number",
+          "exclusiveMinimum": 0.0,
+          "minimum": -1.7976931348623157e+308,
+          "maximum": 1.7976931348623157e+308
+        }
+      },
+      "required": [
+        "type",
+        "a",
+        "b"
+      ]
+    },
+    "Grating": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "Grating"
+          ]
+        },
+        "lineDensity": {
+          "type": "number",
+          "exclusiveMinimum": 0.0,
+          "minimum": -1.7976931348623157e+308,
+          "maximum": 1.7976931348623157e+308
+        },
+        "order": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "required": [
+        "type",
+        "lineDensity"
+      ]
+    },
+    "Mirror": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "Mirror"
+          ]
+        },
+        "reflectivity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 1.0
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "PointSource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "PointSource"
+          ]
+        },
+        "divergence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Deg"
+            },
+            {
+              "$ref": "#/$defs/Rad"
+            }
+          ],
+          "default": {
+            "type": "Rad",
+            "value": 0.0
+          },
+          "discriminator": {
+            "propertyName": "type"
+          }
+        },
+        "energy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Wavelength"
+            },
+            {
+              "$ref": "#/$defs/ElectronVolt"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "type"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "energy"
+      ]
+    },
+    "Rad": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "Rad"
+          ]
+        },
+        "value": {
+          "type": "number",
+          "minimum": -1.7976931348623157e+308,
+          "maximum": 1.7976931348623157e+308
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ]
+    },
+    "RectArea": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "RectArea"
+          ]
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0.0,
+          "minimum": -1.7976931348623157e+308,
+          "maximum": 1.7976931348623157e+308
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0.0,
+          "minimum": -1.7976931348623157e+308,
+          "maximum": 1.7976931348623157e+308
+        }
+      },
+      "required": [
+        "type",
+        "width",
+        "height"
+      ]
+    },
+    "RectSource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "RectSource"
+          ]
+        },
+        "width": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.7976931348623157e+308
+        },
+        "height": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.7976931348623157e+308
+        },
+        "energy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Wavelength"
+            },
+            {
+              "$ref": "#/$defs/ElectronVolt"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "type"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "width",
+        "height",
+        "energy"
+      ]
+    },
+    "SampledSource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "SampledSource"
+          ]
+        },
+        "positions": {
+          "$ref": "#/$defs/Float64Array2D"
+        },
+        "weights": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Float64Array1D"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "energy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Wavelength"
+            },
+            {
+              "$ref": "#/$defs/ElectronVolt"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "type"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "positions",
+        "energy"
+      ]
+    },
+    "Scene": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "numRays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000000,
+          "default": 10000
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PointSource"
+            },
+            {
+              "$ref": "#/$defs/RectSource"
+            },
+            {
+              "$ref": "#/$defs/SampledSource"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "type"
+          }
+        },
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Element"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "source",
+        "elements"
+      ]
+    },
+    "Wavelength": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "Wavelength"
+          ]
+        },
+        "nm": {
+          "type": "number",
+          "exclusiveMinimum": 0.0,
+          "minimum": -1.7976931348623157e+308,
+          "maximum": 1.7976931348623157e+308
+        }
+      },
+      "required": [
+        "type",
+        "nm"
+      ]
+    },
+    "Float64Array2D": {
+      "type": "object",
+      "properties": {
+        "$buffer": {
+          "type": "integer"
+        },
+        "dtype": {
+          "const": "float64"
+        },
+        "shape": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        }
+      },
+      "required": [
+        "$buffer",
+        "dtype",
+        "shape"
+      ],
+      "x-dtype": "float64",
+      "x-ndim": 2
+    },
+    "Float64Array1D": {
+      "type": "object",
+      "properties": {
+        "$buffer": {
+          "type": "integer"
+        },
+        "dtype": {
+          "const": "float64"
+        },
+        "shape": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        }
+      },
+      "required": [
+        "$buffer",
+        "dtype",
+        "shape"
+      ],
+      "x-dtype": "float64",
+      "x-ndim": 1
+    }
+  }
+}

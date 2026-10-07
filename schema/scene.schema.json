@@ -1,0 +1,610 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$ref": "#/$defs/toyscene__Scene",
+    "$defs": {
+        "glm__vec_3__double__glm__packed_highp_": {
+            "type": "array",
+            "items": {
+                "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+        },
+        "rfl__Reflector_toyscene__Array_double_____ReflType": {
+            "type": "object",
+            "properties": {
+                "$buffer": {
+                    "type": "integer"
+                },
+                "dtype": {
+                    "type": "string"
+                },
+                "shape": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "required": [
+                "$buffer",
+                "dtype",
+                "shape"
+            ]
+        },
+        "toyscene__Array_double_": {
+            "$ref": "#/$defs/rfl__Reflector_toyscene__Array_double_____ReflType"
+        },
+        "toyscene__Deg__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "Deg"
+                    ]
+                },
+                "value": {
+                    "allOf": [
+                        {
+                            "minimum": -1.7976931348623157e308,
+                            "type": "number"
+                        },
+                        {
+                            "maximum": 1.7976931348623157e308,
+                            "type": "number"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "type",
+                "value"
+            ]
+        },
+        "toyscene__Detector__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "Detector"
+                    ]
+                }
+            },
+            "required": [
+                "type"
+            ]
+        },
+        "toyscene__ElectronVolt__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "ElectronVolt"
+                    ]
+                },
+                "eV": {
+                    "allOf": [
+                        {
+                            "exclusiveMinimum": 0.0,
+                            "type": "number"
+                        },
+                        {
+                            "allOf": [
+                                {
+                                    "minimum": -1.7976931348623157e308,
+                                    "type": "number"
+                                },
+                                {
+                                    "maximum": 1.7976931348623157e308,
+                                    "type": "number"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "type",
+                "eV"
+            ]
+        },
+        "toyscene__Element": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "position": {
+                    "$ref": "#/$defs/glm__vec_3__double__glm__packed_highp_"
+                },
+                "normal": {
+                    "$ref": "#/$defs/glm__vec_3__double__glm__packed_highp_"
+                },
+                "area": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/toyscene__RectArea__tagged"
+                        },
+                        {
+                            "$ref": "#/$defs/toyscene__EllipseArea__tagged"
+                        }
+                    ]
+                },
+                "behavior": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/toyscene__Mirror__tagged"
+                        },
+                        {
+                            "$ref": "#/$defs/toyscene__Detector__tagged"
+                        },
+                        {
+                            "$ref": "#/$defs/toyscene__Grating__tagged"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "name",
+                "position",
+                "normal",
+                "area",
+                "behavior"
+            ]
+        },
+        "toyscene__EllipseArea__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "EllipseArea"
+                    ]
+                },
+                "a": {
+                    "allOf": [
+                        {
+                            "exclusiveMinimum": 0.0,
+                            "type": "number"
+                        },
+                        {
+                            "allOf": [
+                                {
+                                    "minimum": -1.7976931348623157e308,
+                                    "type": "number"
+                                },
+                                {
+                                    "maximum": 1.7976931348623157e308,
+                                    "type": "number"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "b": {
+                    "allOf": [
+                        {
+                            "exclusiveMinimum": 0.0,
+                            "type": "number"
+                        },
+                        {
+                            "allOf": [
+                                {
+                                    "minimum": -1.7976931348623157e308,
+                                    "type": "number"
+                                },
+                                {
+                                    "maximum": 1.7976931348623157e308,
+                                    "type": "number"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "type",
+                "a",
+                "b"
+            ]
+        },
+        "toyscene__Grating__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "Grating"
+                    ]
+                },
+                "lineDensity": {
+                    "allOf": [
+                        {
+                            "exclusiveMinimum": 0.0,
+                            "type": "number"
+                        },
+                        {
+                            "allOf": [
+                                {
+                                    "minimum": -1.7976931348623157e308,
+                                    "type": "number"
+                                },
+                                {
+                                    "maximum": 1.7976931348623157e308,
+                                    "type": "number"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "order": {
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "type",
+                "lineDensity",
+                "order"
+            ]
+        },
+        "toyscene__Mirror__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "Mirror"
+                    ]
+                },
+                "reflectivity": {
+                    "allOf": [
+                        {
+                            "minimum": 0.0,
+                            "type": "number"
+                        },
+                        {
+                            "maximum": 1.0,
+                            "type": "number"
+                        },
+                        {
+                            "allOf": [
+                                {
+                                    "minimum": -1.7976931348623157e308,
+                                    "type": "number"
+                                },
+                                {
+                                    "maximum": 1.7976931348623157e308,
+                                    "type": "number"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "type",
+                "reflectivity"
+            ]
+        },
+        "toyscene__PointSource__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "PointSource"
+                    ]
+                },
+                "divergence": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/toyscene__Deg__tagged"
+                        },
+                        {
+                            "$ref": "#/$defs/toyscene__Rad__tagged"
+                        }
+                    ]
+                },
+                "energy": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/toyscene__Wavelength__tagged"
+                        },
+                        {
+                            "$ref": "#/$defs/toyscene__ElectronVolt__tagged"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "type",
+                "divergence",
+                "energy"
+            ]
+        },
+        "toyscene__Rad__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "Rad"
+                    ]
+                },
+                "value": {
+                    "allOf": [
+                        {
+                            "minimum": -1.7976931348623157e308,
+                            "type": "number"
+                        },
+                        {
+                            "maximum": 1.7976931348623157e308,
+                            "type": "number"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "type",
+                "value"
+            ]
+        },
+        "toyscene__RectArea__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "RectArea"
+                    ]
+                },
+                "width": {
+                    "allOf": [
+                        {
+                            "exclusiveMinimum": 0.0,
+                            "type": "number"
+                        },
+                        {
+                            "allOf": [
+                                {
+                                    "minimum": -1.7976931348623157e308,
+                                    "type": "number"
+                                },
+                                {
+                                    "maximum": 1.7976931348623157e308,
+                                    "type": "number"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "height": {
+                    "allOf": [
+                        {
+                            "exclusiveMinimum": 0.0,
+                            "type": "number"
+                        },
+                        {
+                            "allOf": [
+                                {
+                                    "minimum": -1.7976931348623157e308,
+                                    "type": "number"
+                                },
+                                {
+                                    "maximum": 1.7976931348623157e308,
+                                    "type": "number"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "type",
+                "width",
+                "height"
+            ]
+        },
+        "toyscene__RectSource__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "RectSource"
+                    ]
+                },
+                "width": {
+                    "allOf": [
+                        {
+                            "minimum": 0.0,
+                            "type": "number"
+                        },
+                        {
+                            "allOf": [
+                                {
+                                    "minimum": -1.7976931348623157e308,
+                                    "type": "number"
+                                },
+                                {
+                                    "maximum": 1.7976931348623157e308,
+                                    "type": "number"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "height": {
+                    "allOf": [
+                        {
+                            "minimum": 0.0,
+                            "type": "number"
+                        },
+                        {
+                            "allOf": [
+                                {
+                                    "minimum": -1.7976931348623157e308,
+                                    "type": "number"
+                                },
+                                {
+                                    "maximum": 1.7976931348623157e308,
+                                    "type": "number"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "energy": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/toyscene__Wavelength__tagged"
+                        },
+                        {
+                            "$ref": "#/$defs/toyscene__ElectronVolt__tagged"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "type",
+                "width",
+                "height",
+                "energy"
+            ]
+        },
+        "toyscene__SampledSource__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "SampledSource"
+                    ]
+                },
+                "positions": {
+                    "$ref": "#/$defs/toyscene__Array_double_"
+                },
+                "weights": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/toyscene__Array_double_"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "energy": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/toyscene__Wavelength__tagged"
+                        },
+                        {
+                            "$ref": "#/$defs/toyscene__ElectronVolt__tagged"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "type",
+                "positions",
+                "energy"
+            ]
+        },
+        "toyscene__Scene": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "numRays": {
+                    "allOf": [
+                        {
+                            "minimum": 1,
+                            "type": "integer"
+                        },
+                        {
+                            "maximum": 10000000,
+                            "type": "integer"
+                        }
+                    ]
+                },
+                "seed": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "source": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/toyscene__PointSource__tagged"
+                        },
+                        {
+                            "$ref": "#/$defs/toyscene__RectSource__tagged"
+                        },
+                        {
+                            "$ref": "#/$defs/toyscene__SampledSource__tagged"
+                        }
+                    ]
+                },
+                "elements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/toyscene__Element"
+                    }
+                }
+            },
+            "required": [
+                "name",
+                "numRays",
+                "source",
+                "elements"
+            ]
+        },
+        "toyscene__Wavelength__tagged": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "Wavelength"
+                    ]
+                },
+                "nm": {
+                    "allOf": [
+                        {
+                            "exclusiveMinimum": 0.0,
+                            "type": "number"
+                        },
+                        {
+                            "allOf": [
+                                {
+                                    "minimum": -1.7976931348623157e308,
+                                    "type": "number"
+                                },
+                                {
+                                    "maximum": 1.7976931348623157e308,
+                                    "type": "number"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "type",
+                "nm"
+            ]
+        }
+    }
+}

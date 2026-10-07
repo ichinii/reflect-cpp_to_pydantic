@@ -1,0 +1,45 @@
+{
+    "note": "",
+    "bufferRefDefinition": "toyscene__Array_double_",
+    "defaults": {
+        "Element": {
+            "normal": [
+                0.0,
+                0.0,
+                1.0
+            ],
+            "position": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "Grating": {
+            "order": 1
+        },
+        "Mirror": {
+            "reflectivity": 1.0
+        },
+        "PointSource": {
+            "divergence": {
+                "type": "Rad",
+                "value": 0.0
+            }
+        },
+        "Scene": {
+            "numRays": 10000
+        }
+    },
+    "arrays": {
+        "SampledSource": {
+            "positions": {
+                "dtype": "float64",
+                "ndim": 2
+            },
+            "weights": {
+                "dtype": "float64",
+                "ndim": 1
+            }
+        }
+    }
+}
